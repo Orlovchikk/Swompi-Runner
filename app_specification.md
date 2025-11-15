@@ -91,4 +91,3 @@
 
 * **Требования к окружению:** Linux, Python, Docker, Docker Compose.
 * **Процесс установки и запуска:** to-do
-
