@@ -11,13 +11,18 @@ class Executor:
         self.s3_client = s3_client
         self.config = config
 
-    def run_build(self, build_id, repo_url, commit_sha):
+    def run_build(self, build_id, request_json):
+        repo_url = request_json['repository']['clone_url']
+        commit_sha = request_json['after']
+
         workspace_path, workspace_object = self._prepare_workspace(build_id)
 
         try:
             self._clone_repo(repo_url, commit_sha, workspace_path)
             config_data = self._read_and_validate_config(workspace_path)
-            print(config_data)
+            self._create_enviroment_file(workspace_path, request_json, config_data, build_id)
+            self._create_build_script(workspace_path, config_data)
+            self._run_docker_container(workspace_path, config_data)
         except Exception as e:
             print(f"ERROR during build {build_id}: {e}")
             self._mark_build_as_failed(build_id, str(e))
@@ -90,6 +95,42 @@ class Executor:
         
         return result[0]
 
+    def _create_enviroment_file(self, workspace_path, request_json, config_data, build_id):
+        env_file_path = os.path.join(workspace_path, ".env")
+        with open(env_file_path, "w") as f:
+            f.write(f"CI_COMMIT_SHA={request_json['after']}\n")
+            f.write(f"CI_COMMIT_MESSAGE={request_json['head_commit']['message']}\n")
+            f.write(f"CI_COMMIT_AUTHOR={request_json['head_commit']['author']['username']}\n")
+            f.write('CI_PROJECT_DIR="/app"\n')
+            f.write(f"CI_REPO_URL={request_json['repository']['html_url']['username']}\n")
+            f.write(f"CI_BUILD_ID={build_id}\n")
+            f.write('CI_SERVER_NAME="Swompi-Runner"\n')
+            f.write(f"CI_COMMIT_REF_NAME={parse_ref(request_json['ref'])}\n")
+
+            for variable, value in config_data.variables:
+                f.write(f"{variable}={value}")
+
+    def parse_ref(ref_string):
+    parts = ref_string.split('/')
+    
+    if len(parts) < 3 or parts[0] != 'refs':
+        return None
+        
+    return '/'.join(parts[2:])
+
+    def _create_build_script(self, workspace_path, config_data):
+        env_file_path = os.path.join(workspace_path, "_run.sh")
+        with open(env_file_path, "w") as f:
+            f.write("set -e\n")
+            for command in config_data.before_script:
+                f.write(f"{command}\n")
+
+            for command in config_data.scripts:
+                f.write(f"{command}\n")
+
+    def _run_docker_container(self, workspace_path, config_data):
+        pass
+    
     def _mark_build_as_failed(self, build_id, error):
         print(f"Marking build {build_id} as FAILED. Reason: {error}")
         pass

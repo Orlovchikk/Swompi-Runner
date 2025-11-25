@@ -17,8 +17,7 @@ executor = Executor(db_session_factory, s3_client, config)
 @app.route("/webhook", methods=["POST"])
 def webhook():
     if request.method == "POST":
-        repo_url = request.json['repository']['clone_url']
-        commit_sha = request.json['after']
+
 
         # db: Session = next(db_session_factory())
 
@@ -27,7 +26,7 @@ def webhook():
         new_build = {"id": 1}
         print(f"Build {new_build['id']} has been queued")
         
-        executor.run_build(build_id=new_build["id"], repo_url=repo_url, commit_sha=commit_sha)
+        executor.run_build(build_id=new_build["id"], request_json=request.json)
 
         return "success", 200
     else:
