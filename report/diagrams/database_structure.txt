@@ -9,24 +9,24 @@ Enum build_status {
 }
 
 Table repositories {
-  id integer [primary key]
-  url varchar(255)
-  name varchar(100)
-  created_at timestamp
+  id integer [primary key, increment] 
+  url varchar(255) [not null]
+  name varchar(100) [not null]
+  created_at timestamp [not null]
 }
 
 Table builds {
-  id integer [primary key]
-  repository_id integer
-  commit_sha varchar(40)
-  commit_message text
-  commit_author varchar(100)
-  ref_name varchar(100)
-  status build_status
+  id integer [primary key, increment]
+  repository_id integer [not null]
+  commit_sha varchar(40) [not null]
+  commit_message text [not null]
+  commit_author varchar(100) [not null]
+  ref_name varchar(100) [not null]
+  status build_status [not null]
   log_key varchar(255)
   artifacts_key varchar(255)
-  created_at timestamp
-  started_at timestamp
+  created_at timestamp [not null]
+  started_at timestamp 
   finished_at timestamp
 }
 
