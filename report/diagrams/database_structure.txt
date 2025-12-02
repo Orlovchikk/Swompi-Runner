@@ -1,0 +1,33 @@
+// Use DBML to define your database structure
+// Docs: https://dbml.dbdiagram.io/docs
+
+Enum build_status {
+  "pending" 
+  "running"
+  "success"
+  "failed"
+}
+
+Table repositories {
+  id integer [primary key, increment] 
+  url varchar(255) [not null]
+  name varchar(100) [not null]
+  created_at timestamp [not null]
+}
+
+Table builds {
+  id integer [primary key, increment]
+  repository_id integer [not null]
+  commit_sha varchar(40) [not null]
+  commit_message text [not null]
+  commit_author varchar(100) [not null]
+  ref_name varchar(100) [not null]
+  status build_status [not null]
+  log_key varchar(255)
+  artifacts_key varchar(255)
+  created_at timestamp [not null]
+  started_at timestamp 
+  finished_at timestamp
+}
+
+Ref user_posts: repositories.id > builds.repository_id // many-to-one
