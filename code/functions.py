@@ -1,24 +1,32 @@
+from sqlalchemy import select, update, delete
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from database import *
-
-ses=SessionLocal()
+from models import *
 
 def create_repo(db: Session, url: str, name: str) -> None:
-    new_repo = Repository(url=url, name=name, created_at=datetime.now().replace(microsecond=0))
+    new_repo = Repository(
+        url=url, 
+        name=name, 
+        created_at=datetime.now().replace(microsecond=0)
+    )
     db.add(new_repo)
     db.commit()
     db.refresh(new_repo)
 
 def delete_repo(db: Session, url: str) -> None:
-    db.query(Repository).filter(Repository.url == url).delete()
+    stmt = delete(Repository).where(Repository.url == url)
+    db.execute(stmt)
     db.commit()
 
 def get_all_repos(db: Session) -> List[Repository]:
-    return db.query(Repository).all()
+    stmt = select(Repository)
+    result = db.execute(stmt)
+    return list(result.scalars().all())
 
 def get_repo_by_url(db: Session, url: str) -> Optional[Repository]:
-    return db.query(Repository).filter(Repository.url == url).first()
+    stmt = select(Repository).where(Repository.url == url)
+    result = db.execute(stmt)
+    return result.scalar_one_or_none()
     
 def create_build(
     db: Session,
@@ -43,10 +51,11 @@ def create_build(
     return new_build.id 
 
 def update_build_status_to_running(db: Session, build_id: int) -> None:
-    db.query(Build).filter(Build.id == build_id).update({
-        Build.status: BuildStatus.running,
-        Build.started_at: datetime.now().replace(microsecond=0)
-    })
+    stmt = update(Build).where(Build.id == build_id).values(
+        status=BuildStatus.running,
+        started_at=datetime.now().replace(microsecond=0)
+    )
+    db.execute(stmt)
     db.commit()
 
 def finalize_build(
@@ -56,10 +65,11 @@ def finalize_build(
     log_key: str,
     artifacts_key: Optional[str] = None
 ) -> None:
-    db.query(Build).filter(Build.id == build_id).update({
-        Build.status: status,
-        Build.log_key: log_key,
-        Build.artifacts_key: artifacts_key,
-        Build.finished_at: datetime.now().replace(microsecond=0)
-    })
-    db.commit()
+    stmt = update(Build).where(Build.id == build_id).values(
+        status=status,
+        log_key=log_key,
+        artifacts_key=artifacts_key,
+        finished_at=datetime.now().replace(microsecond=0)
+    )
+    db.execute(stmt)
+    db.commit()    
