@@ -1,29 +1,38 @@
-from flask import Flask, request, abort
+from flask import Flask, request, abort, _app_ctx_stack
+from sqlalchemy.orm import scoped_session
 
-# from .database import create_db_session_factory
+from session import SessionLocal as db_session_factory
+from functions import get_repo_by_url, create_build
 # from .s3 import create_s3_client
 from executor import Executor
 from config import AppConfig
 
 app = Flask(__name__)
+app.session = scoped_session(db_session_factory, scopefunc=_app_ctx_stack.__ident_func__)
+
 config = AppConfig()
-# db_session_factory = create_db_session_factory(config.DATABASE_URL)
 # s3_client = create_s3_client(config)
 db_session_factory = None
 s3_client = None
 executor = Executor(db_session_factory, s3_client, config)
 
+@app.teardown_appcontext
+def remove_session(*args, **kwargs):
+    app.session.remove()
+
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
     if request.method == "POST":
+        repo_url = request_json['repository']['clone_url']
+        commit_sha = request_json['after']
+        commit_message = request_json['head_commit']['message']
+        commit_author = request_json['head_commit']['author']['username']
+        ref_name = executor._parse_ref(request_json['ref'])
+        repository_id = get_repo_by_url(repo_url)
 
+        new_build = create_build(db, repository_id, commit_sha, commit_message, commit_author, ref_name)
 
-        # db: Session = next(db_session_factory())
-
-        # new_build = create_build_record(db, repo_url=repo_url, commit_sha=commit_sha)
-        # db.close()
-        new_build = {"id": 1}
         print(f"Build {new_build['id']} has been queued")
         
         executor.run_build(build_id=new_build["id"], request_json=request.json)

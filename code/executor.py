@@ -6,6 +6,8 @@ import time
 import docker
 from schema import Schema, Optional, SchemaError, And, Or
 from git import Repo, GitCommandError
+from functions import update_build_status_to_running, finalize_build
+from models import BuildStatus
 
 class Executor:
     def __init__(self, db_session_factory, s3_client, config):
@@ -14,23 +16,25 @@ class Executor:
         self.config = config
 
     def run_build(self, build_id, request_json):
-        repo_url = request_json['repository']['clone_url']
-        commit_sha = request_json['after']
+        with self.session_factory() as db_session:
+            update_build_status_to_running(db_session, build_id)
+            repo_url = request_json['repository']['clone_url']
+            commit_sha = request_json['after']
 
-        workspace_path, workspace_object = self._prepare_workspace(build_id)
+            workspace_path, workspace_object = self._prepare_workspace(build_id)
 
-        try:
-            self._clone_repo(repo_url, commit_sha, workspace_path)
-            config_data = self._read_and_validate_config(workspace_path)
-            env_dict = self._create_enviroment_dict(workspace_path, request_json, config_data, build_id)
-            self._create_build_script(workspace_path, config_data)
-            self._run_docker_container(build_id, workspace_path, config_data, env_dict)
-            time.sleep(10000)
-        except Exception as e:
-            print(f"ERROR during build {build_id}: {e}")
-            self._mark_build_as_failed(build_id, str(e))
-        finally:
-            self._cleanup_workspace(workspace_object)
+            try:
+                self._clone_repo(repo_url, commit_sha, workspace_path)
+                config_data = self._read_and_validate_config(workspace_path)
+                env_dict = self._create_enviroment_dict(workspace_path, request_json, config_data, build_id)
+                self._create_build_script(workspace_path, config_data)
+                self._run_docker_container(build_id, workspace_path, config_data, env_dict)
+                time.sleep(10000)
+            except Exception as e:
+                print(f"ERROR during build {build_id}: {e}")
+                self._mark_build_as_failed(build_id, str(e))
+            finally:
+                self._cleanup_workspace(workspace_object)
 
     def _prepare_workspace(self, build_id):
         workspace_path = tempfile.TemporaryDirectory(prefix=f"swompi_build_{build_id}_")
@@ -183,7 +187,9 @@ class Executor:
                 container.remove()
 
     def _mark_build_as_failed(self, build_id, error):
-        print(f"Marking build {build_id} as FAILED. Reason: {error}")
+        with self.session_factory() as db_session:
+            finalize_build(db_session, build_id, BuildStatus.failed, "None")
+            print(f"Marking build {build_id} as FAILED. Reason: {error}")
 
     def _cleanup_workspace(self, workspace_path):
         print(f"Cleaning up workspace: {workspace_path.name}")
