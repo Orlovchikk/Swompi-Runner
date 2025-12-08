@@ -2,9 +2,12 @@ import os
 import tempfile
 import yaml
 import re
-from git import Repo, GitCommandError
-from schema import Schema, Optional, SchemaError, And, Or
 import time
+import docker
+from schema import Schema, Optional, SchemaError, And, Or
+from git import Repo, GitCommandError
+from functions import update_build_status_to_running, finalize_build
+from models import BuildStatus
 
 class Executor:
     def __init__(self, db_session_factory, s3_client, config):
@@ -13,22 +16,25 @@ class Executor:
         self.config = config
 
     def run_build(self, build_id, request_json):
-        repo_url = request_json['repository']['clone_url']
-        commit_sha = request_json['after']
+        with self.session_factory() as db_session:
+            update_build_status_to_running(db_session, build_id)
+            repo_url = request_json['repository']['clone_url']
+            commit_sha = request_json['after']
 
-        workspace_path, workspace_object = self._prepare_workspace(build_id)
+            workspace_path, workspace_object = self._prepare_workspace(build_id)
 
-        try:
-            self._clone_repo(repo_url, commit_sha, workspace_path)
-            config_data = self._read_and_validate_config(workspace_path)
-            self._create_enviroment_file(workspace_path, request_json, config_data, build_id)
-            self._create_build_script(workspace_path, config_data)
-            self._run_docker_container(workspace_path, config_data)
-        except Exception as e:
-            print(f"ERROR during build {build_id}: {e}")
-            self._mark_build_as_failed(build_id, str(e))
-        finally:
-            self._cleanup_workspace(workspace_object)
+            try:
+                self._clone_repo(repo_url, commit_sha, workspace_path)
+                config_data = self._read_and_validate_config(workspace_path)
+                env_dict = self._create_enviroment_dict(workspace_path, request_json, config_data, build_id)
+                self._create_build_script(workspace_path, config_data)
+                self._run_docker_container(build_id, workspace_path, config_data, env_dict)
+                time.sleep(10000)
+            except Exception as e:
+                print(f"ERROR during build {build_id}: {e}")
+                self._mark_build_as_failed(build_id, str(e))
+            finally:
+                self._cleanup_workspace(workspace_object)
 
     def _prepare_workspace(self, build_id):
         workspace_path = tempfile.TemporaryDirectory(prefix=f"swompi_build_{build_id}_")
@@ -96,27 +102,21 @@ class Executor:
         
         return result[0]
 
-    def _create_enviroment_file(self, workspace_path, request_json, config_data, build_id):
-        env_file_path = os.path.join(workspace_path, ".swompi.env")
-        with open(env_file_path, "w") as f:
-            ci_commit_sha = request_json['after']
-            ci_commit_message = request_json['head_commit']['message']
-            ci_commit_author = request_json['head_commit']['author']['username']
-            ci_repo_url = request_json['repository']['html_url']
-            ci_commit_ref_name = self._parse_ref(request_json['ref'])
-            f.write(f'CI_COMMIT_SHA="{ci_commit_sha}"\n')
-            f.write(f'CI_COMMIT_MESSAGE="{ci_commit_message}"\n')
-            f.write(f'CI_COMMIT_AUTHOR="{ci_commit_author}"\n')
-            f.write('CI_PROJECT_DIR="/app"\n')
-            f.write(f'CI_REPO_URL="{ci_repo_url}\n')
-            f.write(f'CI_BUILD_ID="build_id}\n')
-            f.write('CI_SERVER_NAME="Swompi-Runner"\n')
-            f.write(f'CI_COMMIT_REF_NAME="{ci_commit_ref_name}"\n')
+    def _create_enviroment_dict(self, workspace_path, request_json, config_data, build_id):
+        env_dict = {
+            "CI_COMMIT_SHA": request_json['after'],
+            "CI_COMMIT_MESSAGE": request_json['head_commit']['message'],
+            "CI_COMMIT_AUTHOR": request_json['head_commit']['author']['username'],
+            "CI_PROJECT_DIR": "/app",
+            "CI_REPO_URL": request_json['repository']['html_url'],
+            "CI_BUILD_ID": build_id,
+            "CI_SERVER_NAME": "Swompi-Runner",
+            "CI_COMMIT_REF_NAME": self._parse_ref(request_json['ref'])
+        }
 
-            print(config_data, config_data["variables"])
-            for variable, value in config_data["variables"].items():
-                f.write(f'{variable}="{value}"\n')
-            print(f"Enviroment file succesfully created {env_file_path}")
+        env_dict = env_dict | config_data["variables"]
+        print(f"Enviroment dictionary succesfully created {env_dict}")
+        return env_dict
 
     def _parse_ref(self, ref_string):
         parts = ref_string.split('/')
@@ -135,12 +135,61 @@ class Executor:
                 f.write(f"{command}\n")
         print(f"Script file succesfully created {script_file_path}")
 
-    def _run_docker_container(self, workspace_path, config_data):
-        pass
-    
+    def _run_docker_container(self, build_id, workspace_path, config_data, env_dict):
+        client = docker.from_env()
+        volume = {workspace_path: {
+            "bind": "/app",
+            "mode": "rw"
+        }}
+        cmd = ["sh", "/app/_run.sh"]
+        container = None
+        try:
+            container = client.containers.create(
+                image=config_data["image"],
+                command=cmd,
+                environment=env_dict,
+                volumes=volume,
+                working_dir='/app',
+                tty=False
+            )
+            
+            container.start()
+            
+            log_stream = container.logs(stream=True, stdout=True, stderr=True)
+            
+            print("Container is running, capturing logs...")
+            log_file_path = os.path.join(workspace_path, "build.log")
+            
+            with open(log_file_path, "w", encoding="utf-8") as f:
+                for log_chunk in log_stream:
+                    line = log_chunk.decode('utf-8')
+                    if line.endswith("stderr\n"):
+                        f.write(f"STDERR: {line[:-8]}\n")
+                    else:
+                        f.write(f"STDOUT: {line}")
+
+            result = container.wait()
+            exit_code = result['StatusCode']
+            
+            print(f"Container finished with exit code: {exit_code}")
+            print(f"Log file available here: {log_file_path}")
+
+            if exit_code != 0:
+                self._mark_build_as_failed(build_id, "Error during build. Check logs for more.")
+
+        except docker.errors.ImageNotFound as e:
+            self._mark_build_as_failed(build_id, e)
+        except Exception as e:
+            raise Exception(f"ERROR during running docker container: {e}")
+
+        finally:
+            if container:
+                container.remove()
+
     def _mark_build_as_failed(self, build_id, error):
-        print(f"Marking build {build_id} as FAILED. Reason: {error}")
-        pass
+        with self.session_factory() as db_session:
+            finalize_build(db_session, build_id, BuildStatus.failed, "None")
+            print(f"Marking build {build_id} as FAILED. Reason: {error}")
 
     def _cleanup_workspace(self, workspace_path):
         print(f"Cleaning up workspace: {workspace_path.name}")
