@@ -1,4 +1,4 @@
-from flask import Flask, request, abort, _app_ctx_stack
+from flask import Flask, request, abort
 from sqlalchemy.orm import scoped_session
 
 from session import SessionLocal as db_session_factory
@@ -8,18 +8,11 @@ from executor import Executor
 from config import AppConfig
 
 app = Flask(__name__)
-app.session = scoped_session(db_session_factory, scopefunc=_app_ctx_stack.__ident_func__)
 
 config = AppConfig()
 # s3_client = create_s3_client(config)
-db_session_factory = None
 s3_client = None
 executor = Executor(db_session_factory, s3_client, config)
-
-@app.teardown_appcontext
-def remove_session(*args, **kwargs):
-    app.session.remove()
-
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -31,7 +24,8 @@ def webhook():
         ref_name = executor._parse_ref(request_json['ref'])
         repository_id = get_repo_by_url(repo_url)
 
-        new_build = create_build(db, repository_id, commit_sha, commit_message, commit_author, ref_name)
+        with db_session_factory() as db_session:
+            new_build = create_build(db, repository_id, commit_sha, commit_message, commit_author, ref_name)
 
         print(f"Build {new_build['id']} has been queued")
         
