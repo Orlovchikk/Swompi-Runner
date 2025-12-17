@@ -1,7 +1,9 @@
 from pydantic_settings import BaseSettings
 
 class AppConfig(BaseSettings):
-    DATABASE_URL: str
+    POSTGRES_DB: str
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
     S3_ENDPOINT_URL: str
     S3_ACCESS_KEY: str
     S3_SECRET_KEY: str
