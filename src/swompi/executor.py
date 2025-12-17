@@ -34,6 +34,7 @@ class Executor:
                     log_key = self.file_storage.upload_logs_and_artifacts(build_id, workspace_path, config_data["artifacts"]["paths"])
                 else:
                     log_key = self.file_storage.upload_logs_and_artifacts(build_id, workspace_path)
+                finalize_build(db_session, build_id, BuildStatus.success, log_key)
                     
             except Exception as e:
                 print(f"ERROR during build {build_id}: {e}")
