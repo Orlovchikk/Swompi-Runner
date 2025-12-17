@@ -1,9 +1,9 @@
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 import os
-from dotenv import load_dotenv
+from swompi.config import AppConfig
 
-load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_engine(DATABASE_URL)
+config = AppConfig()
+
+engine = create_engine(f"postgresql://{config.POSTGRES_USER}:{config.POSTGRES_PASSWORD}@database/{config.POSTGRES_DB}")
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
