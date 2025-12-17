@@ -4,7 +4,7 @@ from sqlalchemy.orm import declarative_base, Mapped, mapped_column, relationship
 from typing import Optional
 import enum
 from datetime import datetime
-from .session import engine
+from swompi.session import engine
 
 class BuildStatus(enum.Enum):
     pending = 'pending'
@@ -49,5 +49,4 @@ class Build(Base):
 
     def __repr__(self):
         return f"<Build(id={self.id}, sha='{self.commit_sha}', status='{self.status.name}')>"
-
 

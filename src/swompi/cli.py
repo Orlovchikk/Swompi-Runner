@@ -1,6 +1,6 @@
 import click
-from .functions import create_repo, delete_repo, get_all_repos
-from .session import SessionLocal as db_session_factory
+from swompi.functions import create_repo, delete_repo, get_all_repos
+from swompi.session import SessionLocal as db_session_factory
 
 @click.group()
 def cli():

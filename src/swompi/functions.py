@@ -1,7 +1,7 @@
 from sqlalchemy import select, update, delete
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from .models import *
+from swompi.models import *
 
 def create_repo(db: Session, url: str, name: str) -> None:
     new_repo = Repository(

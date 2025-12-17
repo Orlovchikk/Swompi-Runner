@@ -1,5 +1,5 @@
-from session import engine 
-from models import Base
+from swompi.session import engine 
+from swompi.models import Base
 
 def initialize_database():
     print("Initializing database...")

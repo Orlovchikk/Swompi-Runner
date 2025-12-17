@@ -1,20 +1,18 @@
 from flask import Flask, request, abort
 from sqlalchemy.orm import scoped_session
 
-from session import SessionLocal as db_session_factory
-from functions import get_repo_by_url, create_build, create_repo
-# from .s3 import create_s3_client
-from executor import Executor
-from config import AppConfig
-from session import engine
-from functions import Base
+from swompi.session import engine, SessionLocal as db_session_factory
+from swompi.functions import get_repo_by_url, create_build, create_repo
+from swompi.storage import FileStorageRepository
+from swompi.executor import Executor
+from swompi.config import AppConfig
+from swompi.functions import Base
 
 app = Flask(__name__)
 
 config = AppConfig()
-# s3_client = create_s3_client(config)
-s3_client = None
-executor = Executor(db_session_factory, s3_client, config)
+file_storage_repo = FileStorageRepository(config)
+executor = Executor(db_session_factory, file_storage_repo, config)
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -26,9 +24,9 @@ def webhook():
         ref_name = executor._parse_ref(request.json['ref'])
 
         with db_session_factory() as db_session:
-            repository_id = get_repo_by_url(db_session, repo_url).id
-            if repository_id:
-                new_build = create_build(db_session, repository_id, commit_sha, commit_message, commit_author, ref_name)
+            repository = get_repo_by_url(db_session, repo_url)
+            if repository:
+                new_build = create_build(db_session, repository.id, commit_sha, commit_message, commit_author, ref_name)
                 print(f"Build {new_build} has been queued")
                 
                 executor.run_build(build_id=new_build, request_json=request.json)
