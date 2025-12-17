@@ -1,10 +1,8 @@
 [tool.poetry]
-name = "Swompy"
+name = "swompi"
 version = "0.1.0"
-description = ""
+description = "A simple CI/CD runner"
 authors = ["Your Name you@example.com"]
-package-mode = false
-
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -13,6 +11,18 @@ schema = "^0.7.8"
 gitpython = "^3.1.45"
 pydantic-settings = "^2.12.0"
 docker = "^7.1.0"
+sqlalchemy = "^2.0.44"
+flask = "^3.1.2"
+psycopg2-binary = "^2.9.11"
+click = "^8.3.1"
+boto3 = "^1.42.9"
+py7zr = "^1.0.0"
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[project]
+name = "Swompi"
+
+[project.scripts]
+swompi = "swompi.cli:cli"

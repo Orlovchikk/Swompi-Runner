@@ -6,17 +6,17 @@ import time
 import docker
 from schema import Schema, Optional, SchemaError, And, Or
 from git import Repo, GitCommandError
-from functions import update_build_status_to_running, finalize_build
-from models import BuildStatus
+from swompi.functions import update_build_status_to_running, finalize_build
+from swompi.models import BuildStatus
 
 class Executor:
     def __init__(self, db_session_factory, s3_client, config):
         self.db_session_factory = db_session_factory
-        self.s3_client = s3_client
+        self.file_storage = s3_client
         self.config = config
 
     def run_build(self, build_id, request_json):
-        with self.session_factory() as db_session:
+        with self.db_session_factory() as db_session:
             update_build_status_to_running(db_session, build_id)
             repo_url = request_json['repository']['clone_url']
             commit_sha = request_json['after']
@@ -29,7 +29,12 @@ class Executor:
                 env_dict = self._create_enviroment_dict(workspace_path, request_json, config_data, build_id)
                 self._create_build_script(workspace_path, config_data)
                 self._run_docker_container(build_id, workspace_path, config_data, env_dict)
-                time.sleep(10000)
+                print(config_data)
+                if config_data["artifacts"]["paths"]:
+                    log_key = self.file_storage.upload_logs_and_artifacts(build_id, workspace_path, config_data["artifacts"]["paths"])
+                else:
+                    log_key = self.file_storage.upload_logs_and_artifacts(build_id, workspace_path)
+                    
             except Exception as e:
                 print(f"ERROR during build {build_id}: {e}")
                 self._mark_build_as_failed(build_id, str(e))
@@ -115,7 +120,7 @@ class Executor:
         }
 
         env_dict = env_dict | config_data["variables"]
-        print(f"Enviroment dictionary succesfully created {env_dict}")
+        print(f"Enviroment dictionary succesfully created")
         return env_dict
 
     def _parse_ref(self, ref_string):
@@ -137,6 +142,16 @@ class Executor:
 
     def _run_docker_container(self, build_id, workspace_path, config_data, env_dict):
         client = docker.from_env()
+        image_name = config_data["image"]
+
+        print(f"Pulling Docker image {image_name}")
+        try:
+            client.images.pull(image_name)
+            print(f"Image {image_name} pulled successfully")
+        except docker.error.ImageNotFound:
+            self._mark_build_as_failed(build_id, f"Docker image {image_name} not found")
+            return
+
         volume = {workspace_path: {
             "bind": "/app",
             "mode": "rw"
@@ -187,7 +202,7 @@ class Executor:
                 container.remove()
 
     def _mark_build_as_failed(self, build_id, error):
-        with self.session_factory() as db_session:
+        with self.db_session_factory() as db_session:
             finalize_build(db_session, build_id, BuildStatus.failed, "None")
             print(f"Marking build {build_id} as FAILED. Reason: {error}")
 

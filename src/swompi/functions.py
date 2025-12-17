@@ -1,7 +1,7 @@
 from sqlalchemy import select, update, delete
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from models import *
+from swompi.models import *
 
 def create_repo(db: Session, url: str, name: str) -> None:
     new_repo = Repository(
@@ -13,10 +13,14 @@ def create_repo(db: Session, url: str, name: str) -> None:
     db.commit()
     db.refresh(new_repo)
 
-def delete_repo(db: Session, url: str) -> None:
-    stmt = delete(Repository).where(Repository.url == url)
-    db.execute(stmt)
+def delete_repo(db: Session, url: str) -> bool:
+    repo_to_delete = db.scalars(select(Repository).where(Repository.url == url)).first()
+    if not repo_to_delete:
+        return False
+
+    db.delete(repo_to_delete)
     db.commit()
+    return True
 
 def get_all_repos(db: Session) -> List[Repository]:
     stmt = select(Repository)
