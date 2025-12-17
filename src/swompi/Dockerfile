@@ -18,6 +18,4 @@ COPY ../../.env ./
 
 EXPOSE 25851
 
-RUN python init_db.py && python init_garage.py
-
 CMD ["python", "main.py"]
