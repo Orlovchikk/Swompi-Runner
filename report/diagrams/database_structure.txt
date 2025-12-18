@@ -24,7 +24,6 @@ Table builds {
   ref_name varchar(100) [not null]
   status build_status [not null]
   log_key varchar(255)
-  artifacts_key varchar(255)
   created_at timestamp [not null]
   started_at timestamp 
   finished_at timestamp
