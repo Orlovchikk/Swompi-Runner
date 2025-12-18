@@ -11,6 +11,14 @@ def initialize_database():
     
     print("Database initialized successfully.")
 
+def add_user(db: Session, user: str) -> None:
+    new_user = User(
+        user_name=user 
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
 def create_repo(db: Session, url: str, name: str) -> None:
     new_repo = Repository(
         url=url, 

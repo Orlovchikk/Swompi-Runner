@@ -26,6 +26,14 @@ class Repository(Base):
     def __repr__(self):
         return f"<Repository(id={self.id}, name='{self.name}')>"
 
+class User(Base):
+    __tablename__ = 'users'
+    id: Mapped[int] =  mapped_column(Integer, primary_key=True, index=True)
+    user_name: Mapped[int] = mapped_column(String(100), unique=True, nullable=False)
+
+    def __repr__(self):
+        return f"<User(id={self.id}, user_name='{self.user_name}')>"
+
 class Build(Base):
     __tablename__ = 'builds'
     
