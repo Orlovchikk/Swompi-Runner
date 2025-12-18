@@ -1,12 +1,12 @@
 services:
   swompi-runner:
-  build:
-    context: ./src/swompi
-    dockerfile: Dockerfile
-  env_file: "./.env" 
-  depends_on:
-    - database
-    - garage
+    build:
+      context: ./src/swompi
+      dockerfile: Dockerfile
+    env_file: "./.env" 
+    depends_on:
+      - database
+      - garage
 
   database:
     image: postgres:17
@@ -23,7 +23,6 @@ services:
 
   garage:
     image: dxflrs/garage:v2.1.0
-    network_mode: "host"
     restart: unless-stopped
     volumes:
       - ./garage.toml:/etc/garage.toml
