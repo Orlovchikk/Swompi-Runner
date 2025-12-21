@@ -2,7 +2,7 @@ from flask import Flask, request, abort
 from sqlalchemy.orm import scoped_session
 
 from swompi.session import engine, SessionLocal as db_session_factory
-from swompi.functions import get_repo_by_url, create_build, create_repo
+from swompi.functions import get_repo_by_url, create_build, create_repo, initialize_database
 from swompi.storage import FileStorageRepository
 from swompi.executor import Executor
 from swompi.config import AppConfig
@@ -40,4 +40,5 @@ def webhook():
 
 
 if __name__ == "__main__":
+    initialize_database()
     app.run(host="0.0.0.0", port=25851)
