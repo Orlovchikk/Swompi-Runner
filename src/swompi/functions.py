@@ -2,6 +2,14 @@ from sqlalchemy import select, update, delete
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from swompi.models import *
+from swompi.session import engine 
+
+def initialize_database():
+    print("Initializing database...")
+    
+    Base.metadata.create_all(bind=engine)
+    
+    print("Database initialized successfully.")
 
 def create_repo(db: Session, url: str, name: str) -> None:
     new_repo = Repository(
