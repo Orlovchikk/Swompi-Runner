@@ -5,8 +5,10 @@ RUN chmod +x /usr/local/bin/init_config.sh && ./usr/local/bin/init_config.sh
 
 FROM debian:11-slim
 
-COPY --from=build /etc/garage.toml /etc/
-COPY ./garage /
+ARG TARGETARCH
+
+COPY --from=build /etc/garage.toml /etc/garage.toml
+COPY ./bin/${TARGETARCH}/garage /
 COPY ./init_garage.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/init_garage.sh && chmod +x /garage
 

@@ -1,7 +1,7 @@
 services:
   swompi-runner:
     build: .
-    env_file: "./.env" 
+    env_file: "./.env"
     volumes:
       - shared_data:/app/swompi/shared_data
       - /var/run/docker.sock:/var/run/docker.sock
@@ -16,7 +16,7 @@ services:
     image: postgres:17
     volumes:
         - database:/var/lib/postgresql/data
-    env_file: "./.env" 
+    env_file: "./.env"
     healthcheck:
       test: ["CMD-SHELL", "sh -c 'pg_isready -U postgres -d postgres'"]
       interval: 10s
