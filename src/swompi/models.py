@@ -30,6 +30,7 @@ class User(Base):
     __tablename__ = 'users'
     id: Mapped[int] =  mapped_column(Integer, primary_key=True, index=True)
     user_name: Mapped[int] = mapped_column(String(100), unique=True, nullable=False)
+    chat_id: Mapped[Optional[int]] = mapped_column(String, nullable=True)
 
     def __repr__(self):
         return f"<User(id={self.id}, user_name='{self.user_name}')>"

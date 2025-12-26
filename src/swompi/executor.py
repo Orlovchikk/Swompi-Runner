@@ -41,6 +41,7 @@ class Executor:
                 self._mark_build_as_failed(build_id, str(e))
             finally:
                 self._cleanup_workspace(workspace_object)
+                asyncio.run(send_build_notification(build_id))
 
     def _prepare_workspace(self, build_id):
         workspace_path = tempfile.TemporaryDirectory(prefix=f"swompi_build_{build_id}_")

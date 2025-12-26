@@ -12,6 +12,23 @@ services:
       - database
       - garage
 
+  telegram-bot:
+    build: .
+    env_file: "./.env"
+    volumes:
+      - /tmp:/tmp
+      - shared_data:/app/swompi/shared_data  
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import asyncio; import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      garage:
+        condition: service_healthy  
+
   database:
     image: postgres:17
     volumes:

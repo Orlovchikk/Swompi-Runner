@@ -11,9 +11,10 @@ def initialize_database():
     
     print("Database initialized successfully.")
 
-def add_user(db: Session, user: str) -> None:
+def add_user(db: Session, user: str, chat: str) -> None:
     new_user = User(
-        user_name=user 
+        user_name=user, 
+        chat_id=chat
     )
     db.add(new_user)
     db.commit()
@@ -93,3 +94,27 @@ def finalize_build(
     )
     db.execute(stmt)
     db.commit()    
+
+def get_latest_builds_by_repo(db: Session, repository_name: str,
+    limit: int = 10
+) -> List[Build]:   
+    stmt = (
+        select(Build)
+        .join(Repository)
+        .where(Repository.name == repository_name)
+        .order_by(desc(Build.created_at))
+        .limit(limit)
+    )
+    
+    result = db.execute(stmt)
+    return list(result.scalars().all())
+
+def get_build_status(db: Session, build_id: int) -> Optional[BuildStatus]:
+
+    stmt = select(Build.status).where(Build.id == build_id)
+    result = db.execute(stmt)
+    build_status = result.scalar_one_or_none()
+    
+    return build_status.value if build_status else None    
+    
+      
