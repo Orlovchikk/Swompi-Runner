@@ -43,19 +43,10 @@ def webhook():
         abort(400)
 
 def run_bot_subprocess():
-    """Запуск бота как отдельного процесса (самый стабильный вариант)"""
-    print(" Запускаю Telegram бота как отдельный процесс...")
     
-    # Определяем путь к bot.py
     current_dir = os.path.dirname(os.path.abspath(__file__))
     bot_script = os.path.join(current_dir, "bot.py")
     
-    # Проверяем что файл существует
-    if not os.path.exists(bot_script):
-        print(f" Файл {bot_script} не найден!")
-        return
-    
-    # Запускаем бота как отдельный процесс
     try:
         process = subprocess.Popen(
             [sys.executable, bot_script],
@@ -65,10 +56,7 @@ def run_bot_subprocess():
             bufsize=1,
             universal_newlines=True
         )
-        
-        print(f" Telegram бот запущен (PID: {process.pid})")
-        
-        # Читаем вывод бота в реальном времени
+
         def read_output():
             while True:
                 line = process.stdout.readline()
@@ -76,25 +64,18 @@ def run_bot_subprocess():
                     print(f"[BOT] {line.strip()}")
                 if process.poll() is not None:
                     break
-        
-        # Запускаем чтение вывода в отдельном потоке
+    
         output_thread = threading.Thread(target=read_output, daemon=True)
         output_thread.start()
-        
-        # Ждем завершения процесса (но он не должен завершаться)
         process.wait()
         
     except Exception as e:
-        print(f" Ошибка запуска бота: {e}")
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
     initialize_database()
     
-    # Запускаем бота в отдельном потоке как subprocess
     bot_thread = threading.Thread(target=run_bot_subprocess, daemon=True)
     bot_thread.start()
-    
-    print(" Telegram бот запущен")
-    print(" Запускаю Flask веб-сервер...")
     
     app.run(host="0.0.0.0", port=25851, debug=False, use_reloader=False)

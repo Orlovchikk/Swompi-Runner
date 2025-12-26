@@ -23,10 +23,12 @@ RUN apt update && \
 
 COPY ./pyproject.toml ./
 
+RUN poetry config virtualenvs.create false && \
+    poetry install --no-interaction --no-root
+
 COPY ./src/swompi ./swompi
 
-RUN poetry config virtualenvs.create false && \
-poetry install --no-interaction
+RUN poetry install --no-interaction
 
 COPY entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/entrypoint.sh

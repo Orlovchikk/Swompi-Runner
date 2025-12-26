@@ -1,4 +1,4 @@
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, desc
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from swompi.models import *
