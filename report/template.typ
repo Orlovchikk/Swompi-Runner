@@ -76,7 +76,7 @@
     } else {
       it.body
     }
-    // v(weak: true, lineheight + leading * 2)
+    v(weak: true, lineheight + leading * 2)
     par(hanging-indent: it.hanging-indent, content)
   }
 
