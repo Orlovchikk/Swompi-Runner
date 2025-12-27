@@ -1,12 +1,17 @@
 from flask import Flask, request, abort
 from sqlalchemy.orm import scoped_session
-
+import subprocess
 from swompi.session import engine, SessionLocal as db_session_factory
 from swompi.functions import get_repo_by_url, create_build, create_repo, initialize_database
 from swompi.storage import FileStorageRepository
 from swompi.executor import Executor
 from swompi.config import AppConfig
 from swompi.functions import Base
+import threading
+import sys
+import os
+from bot import *
+import asyncio
 
 app = Flask(__name__)
 
@@ -38,7 +43,40 @@ def webhook():
     else:
         abort(400)
 
+def run_bot_subprocess():
+    
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    bot_script = os.path.join(current_dir, "bot.py")
+    
+    try:
+        process = subprocess.Popen(
+            [sys.executable, bot_script],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            universal_newlines=True
+        )
+
+        def read_output():
+            while True:
+                line = process.stdout.readline()
+                if line:
+                    print(f"[BOT] {line.strip()}")
+                if process.poll() is not None:
+                    break
+    
+        output_thread = threading.Thread(target=read_output, daemon=True)
+        output_thread.start()
+        process.wait()
+        
+    except Exception as e:
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
     initialize_database()
-    app.run(host="0.0.0.0", port=25851)
+    
+    bot_thread = threading.Thread(target=run_bot_subprocess, daemon=True)
+    bot_thread.start()
+    
+    app.run(host="0.0.0.0", port=25851, debug=False, use_reloader=False)

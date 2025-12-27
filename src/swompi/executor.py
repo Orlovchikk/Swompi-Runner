@@ -8,6 +8,8 @@ from schema import Schema, Optional, SchemaError, And, Or
 from git import Repo, GitCommandError
 from swompi.functions import update_build_status_to_running, finalize_build
 from swompi.models import BuildStatus
+import asyncio
+from swompi.bot import send_build_notification
 
 class Executor:
     def __init__(self, db_session_factory, s3_client, config):
@@ -41,6 +43,7 @@ class Executor:
                 self._mark_build_as_failed(build_id, str(e))
             finally:
                 self._cleanup_workspace(workspace_object)
+                asyncio.run(send_build_notification(build_id))
 
     def _prepare_workspace(self, build_id):
         workspace_path = tempfile.TemporaryDirectory(prefix=f"swompi_build_{build_id}_")
