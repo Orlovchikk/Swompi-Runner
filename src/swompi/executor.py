@@ -8,6 +8,8 @@ from schema import Schema, Optional, SchemaError, And, Or
 from git import Repo, GitCommandError
 from swompi.functions import update_build_status_to_running, finalize_build
 from swompi.models import BuildStatus
+import asyncio
+from swompi.bot import send_build_notification
 
 class Executor:
     def __init__(self, db_session_factory, s3_client, config):
