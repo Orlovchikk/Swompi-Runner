@@ -1,19 +1,25 @@
+# 1. Define the Docker image for the build environment
 image: python:3.10-slim
 
+# 2. Define environment variables available in the build
 variables:
   DATABASE_URL: "postgresql://user:password@test-db/test_db"
 
+# 3. Define commands to run before the main scripts
 before_script:
   - pip install -r requirements.txt
 
+# 4. Define the main build
 scripts:
   - flake8 .
   - pytest --cov=my_app --cov-report=html
   - echo "Build finished successfully!"
 
+# 5. Define commands after scripts
 after_script:
   - echo "Cleaning up..."
 
+# 6. Define files or directories to save as artifacts
 artifacts:
   paths:
     - htmlcov/
