@@ -71,7 +71,7 @@ Follow these steps to get Swompi-Runner instance up and running.
     5. Under "Which events would you like to trigger this webhook?", you can select "Just the push event".
     6. Click *Add webhook*
 
-* Trigger a Build
+7. Trigger a Build
 
     Commit and push a change to your repository. See activity in the logs `docker compose logs -f`
 
